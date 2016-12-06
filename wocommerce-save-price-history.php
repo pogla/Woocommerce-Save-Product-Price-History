@@ -28,6 +28,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 		public function __construct() {
 
 			register_activation_hook( __FILE__, array( $this,  'wsh_create_db_table' ) );
+			register_deactivation_hook(__FILE__, array( $this,  'wsh_deactivate_plugin' ) );
 			add_action( 'admin_menu', array( $this,  'wsh_add_submenu_admin' ), 10, 1 );
 			add_action( 'wsh_task_update_prices', array( $this,  'wsh_run_prices_update' ), 10, 1 );
 
@@ -261,6 +262,10 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         		    wp_schedule_event( time(), $timing, 'wsh_task_update_prices' );
         		}
         	}
+        }
+
+        public function wsh_deactivate_plugin(){
+        	wp_clear_scheduled_hook('wsh_task_update_prices');
         }
 
 	}
