@@ -49,6 +49,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 
 		}
 
+		/**
+		 * Outputs table with history prices
+		 */
 		private function show_product_history_form_handler(){
 
 			if( isset($_POST['wsh_product_id_to_search']) ){
@@ -81,6 +84,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 			}
 		}
 
+		/**
+		 * Form showing prices history of chosen product id
+		 */
 		private function show_table_prices_history( $id ){
 
 			global $wpdb;
@@ -133,6 +139,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 			<?php
 		}
 
+		/**
+		 * Form for manually updating the prices of all the products
+		 */
 		private function manual_run_form_handler(){
 
 			if (isset($_POST['wsh_manual_run'])) {
@@ -155,6 +164,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 		    <?php
 		}
 
+		/**
+		 * Form for choosing cron schedule in admin area
+		 */
 		private function choose_run_form_handler(){
 
 			if (isset($_POST['wsh_setting'])) {
@@ -264,7 +276,6 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         	}
 
         	update_option('wsh_prices_last_updated', current_time( 'mysql' ));
-
         }
         
         /**
@@ -350,6 +361,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         	);
         }
 
+        /**
+         * Set new cron job upon select
+         */
         private function wsh_set_new_cron_job( $timing ){
 
         	wp_clear_scheduled_hook('wsh_task_update_prices');
@@ -361,6 +375,9 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         	}
         }
 
+        /**
+         * Clear cron job on deactivation
+         */
         public function wsh_deactivate_plugin(){
         	wp_clear_scheduled_hook('wsh_task_update_prices');
         }
