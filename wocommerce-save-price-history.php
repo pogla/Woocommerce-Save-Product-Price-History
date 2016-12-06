@@ -43,50 +43,145 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 		    echo '<div class="wrap"><div id="icon-tools" class="icon32"></div>';
 		    echo '<h2 style="padding-bottom:15px; margin-bottom:20px; border-bottom:1px solid #ccc">' . __('Woocommerce Price History per Product', 'wsh') . '</h2>';
 
-		    /**
-		     * Settings default
-		     */
-		    if (isset($_POST['wsh_manual_run'])) {
+		    $this->choose_run_form_handler();
+		    $this->manual_run_form_handler();
+		    $this->show_product_history_form_handler();
 
-		    	$this->wsh_run_prices_update();
+		}
 
-		    	update_option('wsh_prices_last_updated', current_time( 'mysql' ));
-		    	$this->wsh_notice('Product prices updated manually.', 'updated');
-		        
-		    }
+		private function show_product_history_form_handler(){
 
-		    $wsh_last_run_price_update = get_option('wsh_prices_last_updated');
+			if( isset($_POST['wsh_product_id_to_search']) ){
+				$searched_ID = $_POST['wsh_product_id_to_search'];
+			}
 
-		    if (isset($_POST['wsh_setting'])) {
-		        update_option('wsh_updating_settings', $_POST['wsh_setting']);
-		        $this->wsh_notice('Update frequency setting is updated.', 'updated');
-		        $this-> wsh_set_new_cron_job( $_POST['wsh_setting']['default_option_wsh_upd'] );
+			?>	
 
-		    }
-
-		    $wsh_updating_settings = get_option('wsh_updating_settings', array('default_option_wsh_upd'=>'none'));
-		    $default_option_wsh_upd = $wsh_updating_settings['default_option_wsh_upd'];
-
-		    ?>
-			
 			<form action="<?php echo $_SERVER['PHP_SELF'] . '?page=wsh-save-history-tab' ?>" method="post">
-			    <div class="postbox " style="padding: 10px 0; margin: 10px 0px;background:none;border: none;box-shadow: none;">
-			        <h3 class="hndle"><?php echo __('Choose when prices of products should update', 'wsh'); ?></h3>
-			        <select name="wsh_setting[default_option_wsh_upd]">
-			            <option value="none" <?php selected( $default_option_wsh_upd, 'none' ) ?>>Do not update scheduled</option>
-			            <option value="hourly" <?php selected( $default_option_wsh_upd, 'hourly' ) ?>>Update every hour</option>
-			            <option value="daily" <?php selected( $default_option_wsh_upd, 'daily' ) ?>>Update daily</option>
-			            <option value="twicedaily" <?php selected( $default_option_wsh_upd, 'twicedaily' ) ?>>Update two times per day</option>
-			        </select>
-			        <br>
-			    </div>
-			    <input class="button-large button-primary" type="submit" value="Save changes" />
+				<h2><?php echo __('Get prices history of product', 'wsh'); ?></h2>
+				<table class="form-table">
+					<tbody>
+						<tr valign="top">
+							<th scope="row" class="titledesc">
+								<label for="woocommerce_price_thousand_sep">Product ID</label>
+							</th>
+							<td class="forminp forminp-text">
+								<input name="wsh_product_id_to_search" id="wsh_product_id_to_search" type="text" style="width:50px;" value="<?php echo !empty($searched_ID) ? $searched_ID : ""; ?>" >
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<input class="button-large button-primary" type="submit" value="Show history" />
 			</form>
 
-		    <p>Last updated: <?php echo $wsh_last_run_price_update; ?></p>
+			<?php
+
+			if( !empty( $searched_ID ) ){
+				$this->show_table_prices_history( trim( $searched_ID ) );
+			}
+		}
+
+		private function show_table_prices_history( $id ){
+
+			global $wpdb;
+			$table_name = $wpdb->prefix . self::$table_name;
+
+			$prices_data = $wpdb->get_row( "SELECT data FROM $table_name WHERE product_id = $id", ARRAY_N );
+
+			if( empty( $prices_data ) ){
+
+				echo "<h2>". __('No product with id', 'wsh') . ": " . $id . "</h2>";
+				return;
+
+			}
+
+			?>
+
+			<h2><?php echo get_the_title( $id ); ?></h2>
+			<a href="<?php echo get_site_url(); ?>/wp-admin/post.php?post=<?php echo $id; ?>&action=edit" target="_blank"><?php echo __('Edit', 'wsh'); ?></a>
+			<a href="<?php echo get_permalink($id); ?>" target="_blank"><?php echo __('View', 'wsh'); ?></a>
+			<br><br>
+			<style>
+				#table-product-history-prices tbody tr:nth-child(odd){
+					background: #f1f1f1;
+				}
+			</style>
+			<table class="wc-shipping-classes widefat" id="table-product-history-prices">
+				<thead>
+					<tr>
+						<th><?php echo __('Date', 'wsh'); ?></th>
+						<th><?php echo __('Regular price', 'wsh'); ?></th>
+						<th><?php echo __('Sale price', 'wsh'); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+
+					<?php
+						$currency = get_woocommerce_currency_symbol();
+						$prices_data = unserialize($prices_data[0]);
+						foreach ($prices_data as $time => $prices) {
+							echo "<tr>";
+							echo "<td>" . $time . "</td>";
+							echo "<td>" . $prices['r_p'] . $currency . "</td>";
+							echo "<td>" . ( !empty( $prices['s_p'] ) ? $prices['s_p'] . $currency : "/" ) . "</td>";
+							echo "</tr>";
+						}
+					?>
+				</tbody>
+			</table>
+
+			<?php
+		}
+
+		private function manual_run_form_handler(){
+
+			if (isset($_POST['wsh_manual_run'])) {
+
+				$this->wsh_run_prices_update();
+				$this->wsh_notice('Product prices updated manually.', 'updated');
+			    
+			}
+
+			$wsh_last_run_price_update = get_option('wsh_prices_last_updated');
+
+			?>
+
 		    <form action="<?php echo $_SERVER['PHP_SELF'] . '?page=wsh-save-history-tab' ?>" method="post">
+	    		<h2><?php echo __('Manually update prices', 'wsh'); ?></h2>
+	    	    <p>Last updated: <?php echo $wsh_last_run_price_update; ?></p>
 		        <input class="button-large button-primary" type="submit" value="Run manual update" name="wsh_manual_run" />
-		    </form>  <?php
+		    </form><br><br>
+
+		    <?php
+		}
+
+		private function choose_run_form_handler(){
+
+			if (isset($_POST['wsh_setting'])) {
+			    update_option('wsh_updating_settings', $_POST['wsh_setting']);
+			    $this->wsh_notice('Update frequency setting is updated.', 'updated');
+			    $this-> wsh_set_new_cron_job( $_POST['wsh_setting']['default_option_wsh_upd'] );
+
+			}
+
+			$wsh_updating_settings = get_option('wsh_updating_settings', array('default_option_wsh_upd'=>'none'));
+			$default_option_wsh_upd = $wsh_updating_settings['default_option_wsh_upd'];
+
+			?>
+				<form action="<?php echo $_SERVER['PHP_SELF'] . '?page=wsh-save-history-tab' ?>" method="post">
+				    <div class="postbox " style="padding: 10px 0; margin: 10px 0px;background:none;border: none;box-shadow: none;">
+				        <h2><?php echo __('Choose when prices of products should update', 'wsh'); ?></h2>
+				        <select name="wsh_setting[default_option_wsh_upd]">
+				            <option value="none" <?php selected( $default_option_wsh_upd, 'none' ) ?>>Do not update scheduled</option>
+				            <option value="hourly" <?php selected( $default_option_wsh_upd, 'hourly' ) ?>>Update every hour</option>
+				            <option value="daily" <?php selected( $default_option_wsh_upd, 'daily' ) ?>>Update daily</option>
+				            <option value="twicedaily" <?php selected( $default_option_wsh_upd, 'twicedaily' ) ?>>Update two times per day</option>
+				        </select>
+				        <br>
+				    </div>
+				    <input class="button-large button-primary" type="submit" value="Save changes" />
+				</form>
+			<?php
 		}
 
 		/**
@@ -167,6 +262,8 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 
         		}
         	}
+
+        	update_option('wsh_prices_last_updated', current_time( 'mysql' ));
 
         }
         
