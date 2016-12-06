@@ -7,6 +7,8 @@
 * Author URI: maticpogladic.com
 */
 
+if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+
 if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
 
 	register_activation_hook( __FILE__, 'wsh_create_db_table' );
