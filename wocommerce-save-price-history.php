@@ -11,203 +11,225 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
 
-	register_activation_hook( __FILE__, 'wsh_create_db_table' );
+	if ( ! class_exists( 'WC_Save_Product_Price_History' ) ) {
 
-	add_action('admin_menu', 'wsh_add_submenu_admin');
+		class WC_Save_Product_Price_History {
 
-	function wsh_add_submenu_admin() {
-	    add_submenu_page('woocommerce', __('Price History', 'wsh'), __('Price History', 'wsh'), 'manage_options', 'wsh-save-history-tab', 'wsh_save_history_settings');
-	}
+			/**
+			 * Database name.
+			 *
+			 * @var string
+			 */
+			protected static $table_name = 'woocommerce_prices_history_products';
 
-	function wsh_save_history_settings() {
+			public function __construct() {
 
-	    echo '<div class="wrap"><div id="icon-tools" class="icon32"></div>';
-	    echo '<h2 style="padding-bottom:15px; margin-bottom:20px; border-bottom:1px solid #ccc">' . __('Woocommerce Price History per Product', 'wsh') . '</h2>';
+				register_activation_hook( __FILE__, array( $this,  'wsh_create_db_table' ) );
+				add_action('admin_menu', array( $this,  'wsh_add_submenu_admin' ), 10, 1 );
 
-	    /**
-	     * Settings default
-	     */
-	    if (isset($_POST['wsh_manual_run'])) {
+			} // End __construct()
 
-	    	$is_price_update = wsh_run_prices_update();
+			public function wsh_add_submenu_admin() {
+			    add_submenu_page('woocommerce', __('Price History', 'wsh'), __('Price History', 'wsh'), 'manage_options', 'wsh-save-history-tab', array( $this,  'wsh_save_history_settings' ) );
+			}
 
-	    	if( $is_price_update ){
-	    		update_option('wsh_plugin_last_updated', current_time( 'mysql' ));
-	    		wsh_notice('Product prices updated manually.', 'updated');
-	    	} else {
-	    		wsh_notice('Product prices failed to update.', 'error');
-	    	}
-	        
-	    }
-	    $softsdev_wps_plugin_settings = get_option('wsh_plugin_last_updated');
-	    ?>
-	    <p>Last updated: <?php echo $softsdev_wps_plugin_settings; ?></p>
-	    <form action="<?php echo $_SERVER['PHP_SELF'] . '?page=wsh-save-history-tab' ?>" method="post">
-	        <input class="button-large button-primary" type="submit" value="Run manual update" name="wsh_manual_run" />
-	    </form>  <?php
-	}
+			public function wsh_save_history_settings() {
 
-	/**
-	 * Create table for storing all product prices
-	 */
-	function wsh_create_db_table() {
+			    echo '<div class="wrap"><div id="icon-tools" class="icon32"></div>';
+			    echo '<h2 style="padding-bottom:15px; margin-bottom:20px; border-bottom:1px solid #ccc">' . __('Woocommerce Price History per Product', 'wsh') . '</h2>';
 
-		global $wpdb;
-		$charset_collate = $wpdb->get_charset_collate();
-		$table_name = $wpdb->prefix . 'prices_history_products';
+			    /**
+			     * Settings default
+			     */
+			    if (isset($_POST['wsh_manual_run'])) {
 
-		$sql = "CREATE TABLE $table_name (
-			id mediumint(9) NOT NULL AUTO_INCREMENT,
-			product_id mediumint(9) NOT NULL,
-			data text NOT NULL,
-			UNIQUE KEY id (id)
-		) $charset_collate;";
+			    	$is_price_update = $this->wsh_run_prices_update();
 
-		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-		dbDelta( $sql );
-	}
+			    	if( $is_price_update ){
+			    		update_option('wsh_plugin_last_updated', current_time( 'mysql' ));
+			    		$this->wsh_notice('Product prices updated manually.', 'updated');
+			    	} else {
+			    		$this->wsh_notice('Product prices failed to update.', 'error');
+			    	}
+			        
+			    }
+			    $softsdev_wps_plugin_settings = get_option('wsh_plugin_last_updated');
+			    ?>
+			    <p>Last updated: <?php echo $softsdev_wps_plugin_settings; ?></p>
+			    <form action="<?php echo $_SERVER['PHP_SELF'] . '?page=wsh-save-history-tab' ?>" method="post">
+			        <input class="button-large button-primary" type="submit" value="Run manual update" name="wsh_manual_run" />
+			    </form>  <?php
+			}
 
-    /**
-     * Type: updated,error,update-nag
-     */
-	if (!function_exists('wsh_notice')) {
-	    function wsh_notice($message, $type){
-            $html = '<div class="{$type} notice">
-			<p>'.$message.'</p>
-			</div>';
-			echo $html;
-        }
-    }
+			/**
+			 * Create table for storing all product prices
+			 */
+			public function wsh_create_db_table() {
 
-    function wsh_run_prices_update(){
+				global $wpdb;
+				$charset_collate = $wpdb->get_charset_collate();
+				$table_name = $wpdb->prefix . self::$table_name;
 
-    	global $woocommerce;
-    	global $wpdb;
+				$sql = "CREATE TABLE $table_name (
+					id mediumint(9) NOT NULL AUTO_INCREMENT,
+					product_id mediumint(9) NOT NULL,
+					data text NOT NULL,
+					UNIQUE KEY id (id)
+				) $charset_collate;";
 
-    	$table_name = $wpdb->prefix . "prices_history_products";
+				require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+				dbDelta( $sql );
+			}
 
-    	$results = $wpdb->get_results( "SELECT * FROM {$table_name}", ARRAY_A );
+		    /**
+		     * Type: updated,error,update-nag
+		     */
+		    private function wsh_notice($message, $type){
+	            $html = '<div class="{$type} notice">
+				<p>'.$message.'</p>
+				</div>';
+				echo $html;
+	        }
 
-    	$args = array( 
-    		'post_type' => array('product'),
-    		'posts_per_page' => -1,
-    	);
+            private function wsh_run_prices_update(){
 
-    	$products = get_posts($args);
+            	global $woocommerce;
+            	global $wpdb;
 
-    	foreach ($products as $product) {
+            	$table_name = $wpdb->prefix . self::$table_name;
 
-    		$id = $product->ID;
-    		$_product = wc_get_product( $id );
+            	//If table does not exist yet create it
+            	if($wpdb->get_var("SHOW TABLES LIKE '$table_name'") != $table_name) {
+            		$this->wsh_create_db_table();
+            	}
 
-    		if( $_product->is_type('variable') ){
+            	$results = $wpdb->get_results( "SELECT * FROM {$table_name}", ARRAY_A );
 
-    			$variations = $_product->get_available_variations();
+            	$args = array( 
+            		'post_type' => array('product'),
+            		'posts_per_page' => -1,
+            	);
 
-    			foreach ($variations as $variation) {
+            	$products = get_posts($args);
 
-    				$id_variation = $variation['variation_id'];
-    				$_product_variation = wc_get_product( $id_variation );
+            	foreach ($products as $product) {
 
-    				wsh_db_price_handler( $id_variation, $_product_variation, $results, $table_name );
+            		$id = $product->ID;
+            		$_product = wc_get_product( $id );
 
-    			}
+            		if( $_product->is_type('variable') ){
 
-    		} else {
+            			$variations = $_product->get_available_variations();
 
-    			wsh_db_price_handler( $id, $_product, $results, $table_name );
+            			foreach ($variations as $variation) {
 
-    		}
-    	}
+            				$id_variation = $variation['variation_id'];
+            				$_product_variation = wc_get_product( $id_variation );
 
-    	return true;
+            				$this->wsh_db_price_handler( $id_variation, $_product_variation, $results, $table_name );
 
-    }
+            			}
 
-    /**
-     * Create or update row in db for product
-     */
-    
-    /**
-     * Creates row or updates row of product with id
-     * @param  int $id
-     * @param  object $product
-     * @param  array $results
-     * @param  string $table_name
-     */
-    function wsh_db_price_handler( $id, $_product, $results, $table_name ){
+            		} else {
 
-    	$position = array_search($id, array_column($results, 'product_id'));
-    	$regular_price = $_product->get_regular_price();
-    	$sale_price = $_product->get_sale_price();
+            			$this->wsh_db_price_handler( $id, $_product, $results, $table_name );
 
-		if( $position === false ){ //if not in db yet
+            		}
+            	}
 
-			$product_prices_array = array(
-	    		current_time( 'mysql' ) => array(
-	    			'r_p'     => $regular_price,
-	    			's_p'        => $sale_price,
-	    		),
-	    	);
+            	return true;
 
-			wsh_insert_first_prices( $table_name, $id, $product_prices_array );
+            }
 
-		} else { //if already in database
+            /**
+             * Create or update row in db for product
+             */
+            
+            /**
+             * Creates row or updates row of product with id
+             * @param  int $id
+             * @param  object $product
+             * @param  array $results
+             * @param  string $table_name
+             */
+            private function wsh_db_price_handler( $id, $_product, $results, $table_name ){
 
-			$prices_history = unserialize( $results[$position]['data'] );
+            	$position = array_search($id, array_column($results, 'product_id'));
+            	$regular_price = $_product->get_regular_price();
+            	$sale_price = $_product->get_sale_price();
 
-			$current_prices = end($prices_history);
+        		if( $position === false ){ //if not in db yet
 
-			//if prices did not change continue
-			if( $regular_price == $current_prices['r_p'] && $sale_price == $current_prices['s_p'] ) return;
+        			$product_prices_array = array(
+        	    		current_time( 'mysql' ) => array(
+        	    			'r_p'     => $regular_price,
+        	    			's_p'        => $sale_price,
+        	    		),
+        	    	);
 
-			$prices_history[current_time( 'mysql' )] = array(
-    			'r_p'        => $regular_price,
-    			's_p'        => $sale_price,
-    		);
+        			$this->wsh_insert_first_prices( $table_name, $id, $product_prices_array );
 
-			wsh_update_prices( $table_name, $id, $prices_history  );
+        		} else { //if already in database
+
+        			$prices_history = unserialize( $results[$position]['data'] );
+
+        			$current_prices = end($prices_history);
+
+        			//if prices did not change continue
+        			if( $regular_price == $current_prices['r_p'] && $sale_price == $current_prices['s_p'] ) return;
+
+        			$prices_history[current_time( 'mysql' )] = array(
+            			'r_p'        => $regular_price,
+            			's_p'        => $sale_price,
+            		);
+
+        			$this->wsh_update_prices( $table_name, $id, $prices_history  );
+
+        		}
+            }
+
+            /**
+             * Insert new row for product with current prices
+             */
+            private function wsh_insert_first_prices( $table_name, $id, $product_prices_array ){
+            	global $wpdb;
+
+            	$wpdb->insert( 
+            		$table_name, 
+            		array( 
+            			'product_id' => $id, 
+            			'data'       => serialize( $product_prices_array )
+            		), 
+            		array( 
+            			'%d', 
+            			'%s'
+            		)
+            	);
+            }
+
+            /**
+             * Insert new row for product with current prices
+             */
+            private function wsh_update_prices( $table_name, $id, $product_prices_array ){
+            	global $wpdb;
+
+            	$wpdb->update( 
+            		$table_name, 
+            		array( 
+            			'data'       => serialize( $product_prices_array )
+            		),
+            		array( 'product_id' => $id ),
+            		array( 
+            			'%s'
+            		),
+            		array( '%d' )
+            	);
+            }
 
 		}
-    }
 
-    /**
-     * Insert new row for product with current prices
-     */
-    function wsh_insert_first_prices( $table_name, $id, $product_prices_array ){
-    	global $wpdb;
+		$GLOBALS['wc_save_product_price_history'] = new WC_Save_Product_Price_History();
 
-    	$wpdb->insert( 
-    		$table_name, 
-    		array( 
-    			'product_id' => $id, 
-    			'data'       => serialize( $product_prices_array )
-    		), 
-    		array( 
-    			'%d', 
-    			'%s'
-    		)
-    	);
-    }
+	}
 
-    /**
-     * Insert new row for product with current prices
-     */
-    function wsh_update_prices( $table_name, $id, $product_prices_array ){
-    	global $wpdb;
-
-    	$wpdb->update( 
-    		$table_name, 
-    		array( 
-    			'data'       => serialize( $product_prices_array )
-    		),
-    		array( 'product_id' => $id ),
-    		array( 
-    			'%s'
-    		),
-    		array( '%d' )
-    	);
-    }
 }
-
-
