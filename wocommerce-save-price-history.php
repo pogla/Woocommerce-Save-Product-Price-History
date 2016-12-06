@@ -171,7 +171,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 
 			if (isset($_POST['wsh_setting'])) {
 			    update_option('wsh_updating_settings', $_POST['wsh_setting']);
-			    $this->wsh_notice('Update frequency setting is updated.', 'updated');
+			    $this->wsh_notice('Frequency setting is updated.', 'updated');
 			    $this-> wsh_set_new_cron_job( $_POST['wsh_setting']['default_option_wsh_upd'] );
 
 			}
