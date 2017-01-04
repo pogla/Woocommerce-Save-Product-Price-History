@@ -231,7 +231,6 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
          */
         public function wsh_run_prices_update(){
 
-        	global $woocommerce;
         	global $wpdb;
 
         	$table_name = $wpdb->prefix . self::$table_name;
@@ -241,10 +240,11 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         		$this->wsh_create_db_table();
         	}
 
+        	//get table data
         	$results = $wpdb->get_results( "SELECT * FROM {$table_name}", ARRAY_A );
 
-        	$args = array( 
-        		'post_type' => array('product'),
+        	$args = array(
+        		'post_type'      => array('product'),
         		'posts_per_page' => -1,
         	);
 
@@ -264,13 +264,13 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         				$id_variation = $variation['variation_id'];
         				$_product_variation = wc_get_product( $id_variation );
 
-        				$this->wsh_db_price_handler( $id_variation, $_product_variation, array_search($id_variation, array_column($results, 'product_id')) );
+                        $this->wsh_db_price_handler( $id_variation, $_product_variation, $results );
 
         			}
 
         		} else {
 
-        			$this->wsh_db_price_handler( $id, $_product, array_search($id, array_column($results, 'product_id')) );
+        			$this->wsh_db_price_handler( $id, $_product, $results );
 
         		}
         	}
@@ -284,10 +284,12 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
          * @param  object $product   product object
          * @param  boolean  $position   if product id is in db or not yet
          */
-        private function wsh_db_price_handler( $id, $_product, $position ){
+        private function wsh_db_price_handler( $id, $_product, $results ){
 
         	$regular_price = $_product->get_regular_price();
         	$sale_price = $_product->get_sale_price();
+
+        	$position = array_search($id, array_column($results, 'product_id'));
 
     		if( $position === false ){ //if not in db yet
 
@@ -341,7 +343,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
         }
 
         /**
-         * Insert new row for product with current prices
+         * Insert new row in db for product with current active prices
          */
         private function wsh_update_prices( $id, $product_prices_array ){
         	global $wpdb;
