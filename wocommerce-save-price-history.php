@@ -32,16 +32,30 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 			add_action( 'admin_menu', array( $this,  'wsh_add_submenu_admin' ), 10, 1 );
 			add_action( 'wsh_task_update_prices', array( $this,  'wsh_run_prices_update' ), 10, 1 );
 
+			// settings style
+			add_action( 'load-woocommerce_page_wsh-save-history-tab' , array( &$this , 'wsh_enqueue_style_scripts' ) );
+
 		} // End __construct()
 
+		//Add styles and scripts
+		public function wsh_enqueue_style_scripts(){
+
+			wp_enqueue_style( 'wsh_admin_setting_style' , plugin_dir_url( __FILE__ ) . '/assets/css/wocommerce-save-price-history-style.css', array() );
+			wp_enqueue_script( 'wsh_admin_setting_script' , plugin_dir_url( __FILE__ ) . '/assets/js/wocommerce-save-price-history-script.js' , array('jquery') );
+			wp_enqueue_script( 'jquery-ui-autocomplete' );
+
+		}
+
+		//Add submenu to Woocommerce menu item
 		public function wsh_add_submenu_admin() {
 		    add_submenu_page('woocommerce', __('Price History', 'wsh'), __('Price History', 'wsh'), 'manage_options', 'wsh-save-history-tab', array( $this,  'wsh_save_history_settings' ) );
 		}
 
+		//Output on admin page
 		public function wsh_save_history_settings() {
 
 		    echo '<div class="wrap"><div id="icon-tools" class="icon32"></div>';
-		    echo '<h2 style="padding-bottom:15px; margin-bottom:20px; border-bottom:1px solid #ccc">' . __('Woocommerce Price History per Product', 'wsh') . '</h2>';
+		    echo '<h2 class="wsh_title">' . __('Woocommerce Price History per Product', 'wsh') . '</h2>';
 
 		    $this->choose_run_form_handler();
 		    $this->manual_run_form_handler();
@@ -69,7 +83,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 								<label for="woocommerce_price_thousand_sep">Product ID</label>
 							</th>
 							<td class="forminp forminp-text">
-								<input name="wsh_product_id_to_search" id="wsh_product_id_to_search" type="text" style="width:50px;" value="<?php echo !empty($searched_ID) ? $searched_ID : ""; ?>" >
+								<input name="wsh_product_id_to_search" id="wsh_product_id_to_search" type="text" value="<?php echo !empty($searched_ID) ? $searched_ID : ""; ?>" >
 							</td>
 						</tr>
 					</tbody>
@@ -90,6 +104,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 		private function show_table_prices_history( $id ){
 
 			global $wpdb;
+
 			$table_name = $wpdb->prefix . self::$table_name;
 
 			$prices_data = $wpdb->get_row( "SELECT data FROM $table_name WHERE product_id = $id", ARRAY_N );
@@ -101,17 +116,19 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 
 			}
 
-			?>
+			$currency = get_woocommerce_currency_symbol();
+			$_product = wc_get_product( $id );
+			$sale_price = $_product->get_sale_price();
 
+			?>
+			
+			<br>
+			<br>
 			<h2><?php echo get_the_title( $id ); ?></h2>
+			<p>Regular Price: <?php echo $_product->get_regular_price() . " " . $currency ?><br>Sale Price: <?php echo ( !empty( $sale_price ) ? $sale_price . " " . $currency : "/" ); ?></p>
 			<a href="<?php echo get_site_url(); ?>/wp-admin/post.php?post=<?php echo $id; ?>&action=edit" target="_blank"><?php echo __('Edit', 'wsh'); ?></a>
 			<a href="<?php echo get_permalink($id); ?>" target="_blank"><?php echo __('View', 'wsh'); ?></a>
 			<br><br>
-			<style>
-				#table-product-history-prices tbody tr:nth-child(odd){
-					background: #f1f1f1;
-				}
-			</style>
 			<table class="wc-shipping-classes widefat" id="table-product-history-prices">
 				<thead>
 					<tr>
@@ -123,7 +140,6 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 				<tbody>
 
 					<?php
-						$currency = get_woocommerce_currency_symbol();
 						$prices_data = unserialize($prices_data[0]);
 						foreach ($prices_data as $time => $prices) {
 							echo "<tr>";
@@ -133,6 +149,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 							echo "</tr>";
 						}
 					?>
+					
 				</tbody>
 			</table>
 
@@ -180,8 +197,8 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 			$default_option_wsh_upd = $wsh_updating_settings['default_option_wsh_upd'];
 
 			?>
-				<form action="<?php echo $_SERVER['PHP_SELF'] . '?page=wsh-save-history-tab' ?>" method="post">
-				    <div class="postbox " style="padding: 10px 0; margin: 10px 0px;background:none;border: none;box-shadow: none;">
+				<form action="<?php echo $_SERVER['PHP_SELF'] . '?page=wsh-save-history-tab' ?>" method="post" class="wsh_setting_form">
+				    <div class="postbox">
 				        <h2><?php echo __('Choose when prices of products should update', 'wsh'); ?></h2>
 				        <select name="wsh_setting[default_option_wsh_upd]">
 				            <option value="none" <?php selected( $default_option_wsh_upd, 'none' ) ?>>Do not update scheduled</option>
