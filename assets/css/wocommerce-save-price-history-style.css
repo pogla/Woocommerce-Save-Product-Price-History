@@ -1,0 +1,33 @@
+.wsh_title{
+	padding-bottom:15px;
+	margin-bottom:20px;
+	border-bottom:1px solid #ccc;
+}
+
+#table-product-history-prices tbody tr:nth-child(odd){
+	background: #f1f1f1;
+}
+
+.wsh_setting_form .postbox{
+	padding: 10px 0;
+	margin: 10px 0px;
+	background:none;
+	border: none;
+	box-shadow: none;
+}
+
+#wsh_product_id_to_search{
+	width:50px;
+}
+
+#wsh_autocomplete_selector .select2-container{
+	max-width: 300px;
+}
+
+.js-example-basic-multiple{
+	width:300px;
+}
+
+.woocommerce_page_wsh-save-history-tab .select2-container .select2-search--inline .select2-search__field{
+	width: 300px !important;
+}
