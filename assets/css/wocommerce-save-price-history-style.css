@@ -19,3 +19,15 @@
 #wsh_product_id_to_search{
 	width:50px;
 }
+
+#wsh_autocomplete_selector .select2-container{
+	max-width: 300px;
+}
+
+.js-example-basic-multiple{
+	width:300px;
+}
+
+.woocommerce_page_wsh-save-history-tab .select2-container .select2-search--inline .select2-search__field{
+	width: 300px !important;
+}

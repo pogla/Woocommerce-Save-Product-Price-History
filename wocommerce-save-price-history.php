@@ -40,9 +40,20 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 		//Add styles and scripts
 		public function wsh_enqueue_style_scripts(){
 
-			wp_enqueue_style( 'wsh_admin_setting_style' , plugin_dir_url( __FILE__ ) . '/assets/css/wocommerce-save-price-history-style.css', array() );
-			wp_enqueue_script( 'wsh_admin_setting_script' , plugin_dir_url( __FILE__ ) . '/assets/js/wocommerce-save-price-history-script.js' , array('jquery') );
+			wp_enqueue_style( 'wsh_admin_setting_style', plugin_dir_url( __FILE__ ) . '/assets/css/wocommerce-save-price-history-style.css', array() );
+			wp_enqueue_style( 'wsh_wc_admin_style', plugin_dir_url( __FILE__ ) . '/assets/css/wc-admin.css', array() );
+
+			wp_register_script( 'wsh_admin_setting_script', plugin_dir_url( __FILE__ ) . '/assets/js/wocommerce-save-price-history-script.js', array( 'jquery' ) );
+
+		    wp_localize_script( 'wsh_admin_setting_script', 'securityObj', array(
+		        'ajaxurl'   => admin_url( 'admin-ajax.php' ),
+		        'security'  => wp_create_nonce( 'search-products' )
+		    ));
+
+		    wp_enqueue_script( 'wsh_admin_setting_script' );
+
 			wp_enqueue_script( 'jquery-ui-autocomplete' );
+			wp_enqueue_script( 'wsh_admin_setting_script_select2', plugin_dir_url( __FILE__ ) . '/assets/js/select2.min.js' , array('jquery'));
 
 		}
 
@@ -82,8 +93,8 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 							<th scope="row" class="titledesc">
 								<label for="woocommerce_price_thousand_sep">Product ID</label>
 							</th>
-							<td class="forminp forminp-text">
-								<input name="wsh_product_id_to_search" id="wsh_product_id_to_search" type="text" value="<?php echo !empty($searched_ID) ? $searched_ID : ""; ?>" >
+							<td class="forminp forminp-text" id="wsh_autocomplete_selector">
+								<input type="hidden" class="js-example-basic-multiple" name="wsh_product_id_to_search">
 							</td>
 						</tr>
 					</tbody>
@@ -94,14 +105,28 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 			<?php
 
 			if( !empty( $searched_ID ) ){
-				$this->show_table_prices_history( trim( $searched_ID ) );
+
+				$_product = wc_get_product( $searched_ID );
+
+				if( $_product->is_type('variable') ){
+
+					$variations = $_product->get_available_variations();
+
+					foreach ($variations as $variation) {
+						$this->show_table_prices_history( $variation['variation_id'], $searched_ID );
+					}
+
+				} else {
+					$this->show_table_prices_history( trim( $searched_ID ) );
+				}
+
 			}
 		}
 
 		/**
 		 * Form showing prices history of chosen product id
 		 */
-		private function show_table_prices_history( $id ){
+		private function show_table_prices_history( $id, $parent_id = null ){
 
 			global $wpdb;
 
@@ -126,8 +151,8 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 			<br>
 			<h2><?php echo get_the_title( $id ); ?></h2>
 			<p>Regular Price: <?php echo $_product->get_regular_price() . " " . $currency ?><br>Sale Price: <?php echo ( !empty( $sale_price ) ? $sale_price . " " . $currency : "/" ); ?></p>
-			<a href="<?php echo get_site_url(); ?>/wp-admin/post.php?post=<?php echo $id; ?>&action=edit" target="_blank"><?php echo __('Edit', 'wsh'); ?></a>
-			<a href="<?php echo get_permalink($id); ?>" target="_blank"><?php echo __('View', 'wsh'); ?></a>
+			<a href="<?php echo get_site_url(); ?>/wp-admin/post.php?post=<?php echo !empty( $parent_id ) ? $parent_id : $id; ?>&action=edit" target="_blank"><?php echo __('Edit', 'wsh'); ?></a>
+			<a href="<?php echo !empty( $parent_id ) ? get_permalink($parent_id) : get_permalink($id); ?>" target="_blank"><?php echo __('View', 'wsh'); ?></a>
 			<br><br>
 			<table class="wc-shipping-classes widefat" id="table-product-history-prices">
 				<thead>
@@ -149,7 +174,7 @@ if (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_
 							echo "</tr>";
 						}
 					?>
-					
+
 				</tbody>
 			</table>
 
